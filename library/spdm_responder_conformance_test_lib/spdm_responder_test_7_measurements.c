@@ -40,6 +40,7 @@ bool spdm_test_case_measurements_setup_vca_challenge_session (void *test_context
     uint8_t data8;
     spdm_measurements_test_buffer_t *test_buffer;
     size_t index;
+    uint8_t slot_id;
 
     spdm_test_context = test_context;
     spdm_context = spdm_test_context->spdm_context;
@@ -176,18 +177,24 @@ bool spdm_test_case_measurements_setup_vca_challenge_session (void *test_context
         }
     }
 
-    m_cert_chain_buffer_size = sizeof(m_cert_chain_buffer);
-    status = libspdm_get_certificate (spdm_context, NULL, 0,
-                                      &m_cert_chain_buffer_size, m_cert_chain_buffer);
-    if (LIBSPDM_STATUS_IS_ERROR(status)) {
-        return false;
-    }
+    for (slot_id = 0; slot_id < SPDM_MAX_SLOT_COUNT; slot_id++) {
+        if ((test_buffer->slot_mask & (0x1 << slot_id)) == 0) {
+            continue;
+        }
 
-    status = libspdm_challenge (spdm_context, NULL, 0,
-                                SPDM_CHALLENGE_REQUEST_ALL_MEASUREMENTS_HASH,
-                                &test_buffer->measurement_summary_hash, NULL);
-    if (LIBSPDM_STATUS_IS_ERROR(status)) {
-        return false;
+        m_cert_chain_buffer_size = sizeof(m_cert_chain_buffer);
+        status = libspdm_get_certificate (spdm_context, NULL, slot_id,
+                                          &m_cert_chain_buffer_size, m_cert_chain_buffer);
+        if (LIBSPDM_STATUS_IS_ERROR(status)) {
+            return false;
+        }
+
+        status = libspdm_challenge (spdm_context, NULL, slot_id,
+                                    SPDM_CHALLENGE_REQUEST_ALL_MEASUREMENTS_HASH,
+                                    &test_buffer->measurement_summary_hash, NULL);
+        if (LIBSPDM_STATUS_IS_ERROR(status)) {
+            return false;
+        }
     }
 
     if (need_session) {
@@ -743,7 +750,7 @@ void spdm_test_case_measurements_success_10_11_12 (void *test_context, uint8_t v
             }
 
             result = libspdm_verify_measurement_signature(
-                spdm_context, NULL, signature_ptr, signature_size);
+                spdm_context, NULL, slot_id, signature_ptr, signature_size);
             if (result) {
                 test_result = COMMON_TEST_RESULT_PASS;
             } else {
@@ -963,7 +970,7 @@ void spdm_test_case_measurements_success_10_11_12 (void *test_context, uint8_t v
             }
 
             result = libspdm_verify_measurement_signature(
-                spdm_context, NULL, signature_ptr, signature_size);
+                spdm_context, NULL, slot_id, signature_ptr, signature_size);
             if (result) {
                 test_result = COMMON_TEST_RESULT_PASS;
             } else {
@@ -1194,7 +1201,7 @@ void spdm_test_case_measurements_success_10_11_12 (void *test_context, uint8_t v
                 }
 
                 result = libspdm_verify_measurement_signature(
-                    spdm_context, NULL, signature_ptr, signature_size);
+                    spdm_context, NULL, slot_id, signature_ptr, signature_size);
                 if (result) {
                     test_result = COMMON_TEST_RESULT_PASS;
                 } else {
